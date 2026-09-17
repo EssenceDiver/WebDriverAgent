@@ -1,0 +1,39 @@
+name: Build Unsigned WDA IPA
+
+on:
+  workflow_dispatch: # 允许手动触发执行
+
+jobs:
+  build:
+    runs-on: macos-13 # 使用 GitHub 提供的 Mac 虚拟机
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Bootstrap Dependencies
+        run: ./Scripts/bootstrap.sh
+
+      - name: Build WDA Unsigned
+        run: |
+          # 忽略签名进行强制编译
+          xcodebuild build-for-testing \
+            -project WebDriverAgent.xcodeproj \
+            -scheme WebDriverAgentRunner \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CONFIGURATION_BUILD_DIR=$PWD/build
+          
+          # 将编译好的 app 打包成标准的 ipa 格式
+          mkdir Payload
+          cp -R build/WebDriverAgentRunner-Runner.app Payload/
+          zip -q -r WebDriverAgent.ipa Payload/
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgent-Unsigned
+          path: WebDriverAgent.ipa
